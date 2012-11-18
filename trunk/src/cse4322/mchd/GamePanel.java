@@ -1,12 +1,12 @@
 package cse4322.mchd;
 
-import cse4322.mchd.sprite.Ship;
-import android.util.Log;
 import android.app.Activity;
 import android.content.Context;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.Paint;
+import android.util.Log;
 import android.view.MotionEvent;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
@@ -16,6 +16,9 @@ public class GamePanel extends SurfaceView implements SurfaceHolder.Callback {
 	private static final String TAG = MainThread.class.getSimpleName();
 	private MainThread thread;
 	private Ship ship;
+	
+	//the fps to be displayed
+	private String avgFPS;
 
 	public GamePanel(Context context)
 	{
@@ -115,9 +118,36 @@ public class GamePanel extends SurfaceView implements SurfaceHolder.Callback {
 	@Override
 	protected void onDraw(Canvas canvas)
 	{
+		render(canvas);
+	}
+	
+	protected void render(Canvas canvas)
+	{
 		//fill the canvas with black
 		canvas.drawColor(Color.BLACK);
 		ship.draw(canvas);
+		//display fps
+		displayFPS(canvas, avgFPS);
+	}
+	
+	protected void update()
+	{
+		
+	}
+	
+	public void setAvgFPS(String avgFPS)
+	{
+		this.avgFPS = avgFPS;
+	}
+	
+	private void displayFPS(Canvas canvas, String fps)
+	{
+		if(canvas != null & fps != null)
+		{
+			Paint paint = new Paint();
+			paint.setARGB(255, 255, 255, 255);
+			canvas.drawText(fps,  this.getWidth() - 50, 20, paint);
+		}
 	}
 
 }
