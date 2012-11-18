@@ -1,4 +1,4 @@
-package cse4322.mchd.sprite;
+package cse4322.mchd;
 
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
