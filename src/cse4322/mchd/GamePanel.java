@@ -1,5 +1,7 @@
 package cse4322.mchd;
 
+import java.util.ArrayList;
+
 import android.app.Activity;
 import android.content.Context;
 import android.graphics.BitmapFactory;
@@ -15,10 +17,18 @@ public class GamePanel extends SurfaceView implements SurfaceHolder.Callback {
 	
 	private static final String TAG = MainThread.class.getSimpleName();
 	private MainThread thread;
-	private Ship ship;
+	
+	private int width, height;
+	private int score;
+	//private Ship ship;
+	private City city;
+	private ArrayList<CityMissile> cityMissiles;
+	private ArrayList<CityMissile> deadCityMissiles;
 	
 	//the fps to be displayed
 	private String avgFPS;
+	private static final String scoreText = "Score: ";
+	private static final String healthText = "City Health: ";
 
 	public GamePanel(Context context)
 	{
@@ -28,7 +38,9 @@ public class GamePanel extends SurfaceView implements SurfaceHolder.Callback {
 		getHolder().addCallback(this);
 		
 		//create ship and load bitmap
-		ship = new Ship(BitmapFactory.decodeResource(getResources(), R.drawable.frigate_l), 360, 640);
+		//ship = new Ship(BitmapFactory.decodeResource(getResources(), R.drawable.frigate_l), 360, 640);
+		cityMissiles = new ArrayList<CityMissile>();
+		deadCityMissiles = new ArrayList<CityMissile>();
 		
 		//create the game loop thread
 		thread = new MainThread(getHolder(), this);
@@ -49,6 +61,14 @@ public class GamePanel extends SurfaceView implements SurfaceHolder.Callback {
 		//at this point the surface is created and we can safely start the game loop
 		thread.setRunning(true);
 		thread.start();
+		
+		//get width and height of screen, cannot be done in constructor
+		width = this.getWidth();
+		height = this.getHeight();
+		
+		//create city and load bitmap
+		if(city == null)
+			city = new City(BitmapFactory.decodeResource(getResources(), R.drawable.dallas), this.getWidth(), this.getHeight());
 	}
 	
 	@Override
@@ -79,9 +99,10 @@ public class GamePanel extends SurfaceView implements SurfaceHolder.Callback {
 		if(event.getAction() == MotionEvent.ACTION_DOWN)
 		{
 			//delegating event handling to the ship
-			ship.handleActionDown((int)event.getX(), (int)event.getY());
+			//ship.handleActionDown((int)event.getX(), (int)event.getY());
 			
 			//end the game if the bottom of the screen is tapped
+			/*
 			if(event.getY() > getHeight() - 50)
 			{
 				thread.setRunning(false);
@@ -90,27 +111,37 @@ public class GamePanel extends SurfaceView implements SurfaceHolder.Callback {
 			else
 			{
 				Log.d(TAG, "Coords: x=" + event.getX() + ",y=" + event.getY());
+			}*/
+			
+			if(event.getY() < height - city.getHeight())
+			{
+				if(city.readyToFire())
+				{
+					cityMissiles.add(new CityMissile(BitmapFactory.decodeResource(getResources(), R.drawable.city_missile), BitmapFactory.decodeResource(getResources(), R.drawable.target), city.getMidX(), city.getMidY(), (int)event.getX(), (int)event.getY()));
+				}
 			}
 		}
 		
 		if(event.getAction() == MotionEvent.ACTION_MOVE)
 		{
 			//the gestures
+			/*
 			if(ship.isTouched())
 			{
 				//the ship was picked up and is being dragged
 				ship.setX((int)event.getX());
 				ship.setY((int)event.getY());
-			}
+			}*/
 		}
 		
 		if(event.getAction() == MotionEvent.ACTION_UP)
 		{
 			//touch was released
+			/*
 			if(ship.isTouched())
 			{
 				ship.setTouched(false);
-			}
+			}*/
 		}
 		return true;
 	}
@@ -121,18 +152,39 @@ public class GamePanel extends SurfaceView implements SurfaceHolder.Callback {
 		render(canvas);
 	}
 	
+	private void cleanupSprites()
+	{
+		cityMissiles.removeAll(deadCityMissiles);
+		deadCityMissiles.clear();
+	}
+	
 	protected void render(Canvas canvas)
 	{
 		//fill the canvas with black
 		canvas.drawColor(Color.BLACK);
-		ship.draw(canvas);
+		//ship.draw(canvas);
+		if(city != null)
+			city.draw(canvas);
+		for(CityMissile c : cityMissiles)
+		{
+			c.draw(canvas);
+		}
 		//display fps
 		displayFPS(canvas, avgFPS);
 	}
 	
 	protected void update()
 	{
-		
+		if(city != null)
+			city.update();
+		for(CityMissile c : cityMissiles)
+		{
+			c.update();
+			if(c.hasDetonated())
+				deadCityMissiles.add(c);
+		}
+		if(!deadCityMissiles.isEmpty())
+			cleanupSprites();
 	}
 	
 	public void setAvgFPS(String avgFPS)
