@@ -18,7 +18,7 @@ public class CityMissile {
 	public void update()
 	{
 		x = x + (speed * Math.cos(angle));
-		y = y + (speed * Math.sin(angle));
+		y = y - (speed * Math.sin(angle));
 		
 		if((Math.sqrt(Math.pow(destX - x, 2) + Math.pow(destY - y, 2))) < 20)
 				detonated = true;
@@ -39,7 +39,7 @@ public class CityMissile {
 		this.destX = destX;
 		this.destY = destY;
 		this.speed = 5;
-		angle = (double) Math.atan((y - destY)/(destX - x));
+		angle = (double) Math.atan2(y - destY, destX - x);
 	}
 
 }
