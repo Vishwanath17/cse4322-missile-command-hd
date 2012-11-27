@@ -19,7 +19,7 @@ public class GamePanel extends SurfaceView implements SurfaceHolder.Callback {
 	private MainThread thread;
 	
 	private int width, height;
-	private int score;
+	private int score = 0;
 	//private Ship ship;
 	private City city;
 	private ArrayList<CityMissile> cityMissiles;
@@ -29,6 +29,8 @@ public class GamePanel extends SurfaceView implements SurfaceHolder.Callback {
 	private String avgFPS;
 	private static final String scoreText = "Score: ";
 	private static final String healthText = "City Health: ";
+	
+	private Paint hudPaint;
 
 	public GamePanel(Context context)
 	{
@@ -41,6 +43,8 @@ public class GamePanel extends SurfaceView implements SurfaceHolder.Callback {
 		//ship = new Ship(BitmapFactory.decodeResource(getResources(), R.drawable.frigate_l), 360, 640);
 		cityMissiles = new ArrayList<CityMissile>();
 		deadCityMissiles = new ArrayList<CityMissile>();
+		
+		hudPaint = new Paint();
 		
 		//create the game loop thread
 		thread = new MainThread(getHolder(), this);
@@ -169,6 +173,8 @@ public class GamePanel extends SurfaceView implements SurfaceHolder.Callback {
 		{
 			c.draw(canvas);
 		}
+		//display HUD
+		displayHUD(canvas);
 		//display fps
 		displayFPS(canvas, avgFPS);
 	}
@@ -190,6 +196,17 @@ public class GamePanel extends SurfaceView implements SurfaceHolder.Callback {
 	public void setAvgFPS(String avgFPS)
 	{
 		this.avgFPS = avgFPS;
+	}
+	
+	private void displayHUD(Canvas canvas)
+	{
+		if(canvas != null)
+		{
+			Paint paint = new Paint();
+			paint.setARGB(255, 0, 255, 0);
+			paint.setTextSize(20);
+			canvas.drawText(scoreText, 30, 30, paint);
+		}
 	}
 	
 	private void displayFPS(Canvas canvas, String fps)
