@@ -2,7 +2,6 @@ package cse4322.mchd;
 
 import java.util.ArrayList;
 
-import android.app.Activity;
 import android.content.Context;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
@@ -20,17 +19,23 @@ public class GamePanel extends SurfaceView implements SurfaceHolder.Callback {
 	
 	private int width, height;
 	private int score = 0;
+	private boolean cleanupNeeded = false;
 	//private Ship ship;
 	private City city;
 	private ArrayList<CityMissile> cityMissiles;
+	private ArrayList<CityMissile> queuedCityMissiles;
 	private ArrayList<CityMissile> deadCityMissiles;
+	
+	private ArrayList<Explosion> explosions;
+	private ArrayList<Explosion> deadExplosions;
 	
 	//the fps to be displayed
 	private String avgFPS;
-	private static final String scoreText = "Score: ";
-	private static final String healthText = "City Health: ";
+	private String scoreText;
+	private String healthText;
 	
 	private Paint hudPaint;
+	private Paint fpsPaint;
 
 	public GamePanel(Context context)
 	{
@@ -39,12 +44,26 @@ public class GamePanel extends SurfaceView implements SurfaceHolder.Callback {
 		//adding the callback (this) to the surface holder to intercept events
 		getHolder().addCallback(this);
 		
+		scoreText = context.getString(R.string.score);
+		healthText = context.getString(R.string.city_health);
+		
 		//create ship and load bitmap
 		//ship = new Ship(BitmapFactory.decodeResource(getResources(), R.drawable.frigate_l), 360, 640);
 		cityMissiles = new ArrayList<CityMissile>();
+		queuedCityMissiles = new ArrayList<CityMissile>();
 		deadCityMissiles = new ArrayList<CityMissile>();
 		
+		explosions = new ArrayList<Explosion>();
+		deadExplosions = new ArrayList<Explosion>();
+		
 		hudPaint = new Paint();
+		hudPaint.setARGB(255, 0, 255, 0);
+		hudPaint.setTextSize(20);
+		
+		fpsPaint = new Paint();
+		fpsPaint.setARGB(255, 255, 255, 255);
+		fpsPaint.setTextSize(20);
+		
 		
 		//create the game loop thread
 		thread = new MainThread(getHolder(), this);
@@ -121,7 +140,8 @@ public class GamePanel extends SurfaceView implements SurfaceHolder.Callback {
 			{
 				if(city.readyToFire())
 				{
-					cityMissiles.add(new CityMissile(BitmapFactory.decodeResource(getResources(), R.drawable.city_missile), BitmapFactory.decodeResource(getResources(), R.drawable.target), city.getMidX(), city.getMidY(), (int)event.getX(), (int)event.getY()));
+					//adding a missile directly into the city missile list while updating/drawing could throw a ConcurrentModificationException, crashing the game.
+					queuedCityMissiles.add(new CityMissile(BitmapFactory.decodeResource(getResources(), R.drawable.city_missile), BitmapFactory.decodeResource(getResources(), R.drawable.target), city.getMidX(), city.getMidY(), (int)event.getX(), (int)event.getY()));
 				}
 			}
 		}
@@ -156,40 +176,98 @@ public class GamePanel extends SurfaceView implements SurfaceHolder.Callback {
 		render(canvas);
 	}
 	
+	private void addScore(int points)
+	{
+		score += points;
+	}
+	
 	private void cleanupSprites()
 	{
 		cityMissiles.removeAll(deadCityMissiles);
 		deadCityMissiles.clear();
+		
+		explosions.removeAll(deadExplosions);
+		deadExplosions.clear();
 	}
 	
 	protected void render(Canvas canvas)
 	{
-		//fill the canvas with black
-		canvas.drawColor(Color.BLACK);
-		//ship.draw(canvas);
-		if(city != null)
-			city.draw(canvas);
-		for(CityMissile c : cityMissiles)
+		if(canvas != null)
 		{
-			c.draw(canvas);
+			//fill the canvas with black
+			canvas.drawColor(Color.BLACK);
+			//ship.draw(canvas);
+			if(city != null)
+				city.draw(canvas);
+			for(Explosion e : explosions)
+			{
+				e.draw(canvas);
+			}
+			
+			for(CityMissile c : cityMissiles)
+			{
+				c.draw(canvas);
+			}
+			
+			//display HUD
+			displayHUD(canvas);
+			//display fps
+			displayFPS(canvas, avgFPS);
 		}
-		//display HUD
-		displayHUD(canvas);
-		//display fps
-		displayFPS(canvas, avgFPS);
 	}
 	
 	protected void update()
 	{
+		cleanupNeeded = false;
+		
 		if(city != null)
 			city.update();
+		
+		for(Explosion e : explosions)
+		{
+			e.update();
+			if(e.hasExpired())
+			{
+				deadExplosions.add(e);
+				cleanupNeeded = true;
+			}
+		}
+		
+		if(!queuedCityMissiles.isEmpty())
+		{
+			cityMissiles.addAll(queuedCityMissiles);
+			queuedCityMissiles.clear();
+		}
+		
 		for(CityMissile c : cityMissiles)
 		{
 			c.update();
-			if(c.hasDetonated())
+			//check if missile reached target
+			if(!c.hasDetonated())
+			{
+				//check if missile has hit an explosion
+				boolean hitExplosion = false;
+				for(Explosion e : explosions)
+					if(c.hasCollided(e))
+						hitExplosion = true;
+				if(hitExplosion)
+				{
+					//if so, kill the missile and spawn an explosion
+					deadCityMissiles.add(c);
+					explosions.add(new Explosion((int)c.getX(), (int)c.getY()));
+					cleanupNeeded = true;
+				}
+			}
+			else if(c.hasDetonated())
+			{
+				//if missile has detonated, kill the missile and spawn an explosion
 				deadCityMissiles.add(c);
+				explosions.add(new Explosion((int)c.getX(), (int)c.getY()));
+				cleanupNeeded = true;
+			}
 		}
-		if(!deadCityMissiles.isEmpty())
+		
+		if(cleanupNeeded)
 			cleanupSprites();
 	}
 	
@@ -202,10 +280,7 @@ public class GamePanel extends SurfaceView implements SurfaceHolder.Callback {
 	{
 		if(canvas != null)
 		{
-			Paint paint = new Paint();
-			paint.setARGB(255, 0, 255, 0);
-			paint.setTextSize(20);
-			canvas.drawText(scoreText, 30, 30, paint);
+			canvas.drawText(scoreText, 30, 30, hudPaint);
 		}
 	}
 	
@@ -213,9 +288,7 @@ public class GamePanel extends SurfaceView implements SurfaceHolder.Callback {
 	{
 		if(canvas != null & fps != null)
 		{
-			Paint paint = new Paint();
-			paint.setARGB(255, 255, 255, 255);
-			canvas.drawText(fps,  this.getWidth() - 50, 20, paint);
+			canvas.drawText(fps,  this.getWidth() - 100, 20, fpsPaint);
 		}
 	}
 
