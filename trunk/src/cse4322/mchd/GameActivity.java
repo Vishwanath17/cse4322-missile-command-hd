@@ -27,6 +27,8 @@ import android.view.WindowManager;
 public class GameActivity extends Activity {
 	
 	private static final String TAG = MainThread.class.getSimpleName();
+	
+	private GamePanel gamePanel;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -39,7 +41,8 @@ public class GameActivity extends Activity {
         //getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
         getWindow().setFlags(WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED, WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED);
         //set out GamePanel as the View
-        setContentView(new GamePanel(this));
+        gamePanel = new GamePanel(this);
+        setContentView(gamePanel);
         Log.d(TAG, "View added");
     }
     
