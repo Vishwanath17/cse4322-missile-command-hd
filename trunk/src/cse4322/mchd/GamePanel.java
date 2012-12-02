@@ -3,6 +3,7 @@ package cse4322.mchd;
 import java.util.ArrayList;
 
 import android.content.Context;
+import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
@@ -15,10 +16,21 @@ import android.view.SurfaceView;
 public class GamePanel extends SurfaceView implements SurfaceHolder.Callback {
 	
 	private static final String TAG = MainThread.class.getSimpleName();
+	private static final long ENEMY_SPAWN_INTERVAL = 10000;
+	private static final long PRIZE_SPAWN_INTERVAL = 30000;
+	private static final long DIFFICULTY_INCREASE_INTERVAL = ENEMY_SPAWN_INTERVAL * 10;
+	
 	private MainThread thread;
 	
 	private int width, height;
 	private int score = 0;
+	
+	private long timeLastEnemySpawn;
+	private long timeLastPrizeSpawn;
+	private long timeLastDifficultyIncrease;
+	
+	private int difficultyLevel = 1;
+	
 	private boolean cleanupNeeded = false;
 	//private Ship ship;
 	private City city;
@@ -28,6 +40,12 @@ public class GamePanel extends SurfaceView implements SurfaceHolder.Callback {
 	
 	private ArrayList<Explosion> explosions;
 	private ArrayList<Explosion> deadExplosions;
+	
+	private ArrayList<Ship> ships;
+	private ArrayList<Ship> deadShips;
+	
+	private ArrayList<Ordnance> ordnance;
+	private ArrayList<Ordnance> deadOrdnance;
 	
 	//the fps to be displayed
 	private String avgFPS;
@@ -47,6 +65,10 @@ public class GamePanel extends SurfaceView implements SurfaceHolder.Callback {
 		scoreText = context.getString(R.string.score);
 		healthText = context.getString(R.string.city_health);
 		
+		timeLastEnemySpawn = System.currentTimeMillis();
+		timeLastPrizeSpawn = System.currentTimeMillis();
+		timeLastDifficultyIncrease = System.currentTimeMillis();
+		
 		//create ship and load bitmap
 		//ship = new Ship(BitmapFactory.decodeResource(getResources(), R.drawable.frigate_l), 360, 640);
 		cityMissiles = new ArrayList<CityMissile>();
@@ -55,6 +77,12 @@ public class GamePanel extends SurfaceView implements SurfaceHolder.Callback {
 		
 		explosions = new ArrayList<Explosion>();
 		deadExplosions = new ArrayList<Explosion>();
+		
+		ships = new ArrayList<Ship>();
+		deadShips = new ArrayList<Ship>();
+		
+		ordnance = new ArrayList<Ordnance>();
+		deadOrdnance = new ArrayList<Ordnance>();
 		
 		hudPaint = new Paint();
 		hudPaint.setARGB(255, 0, 255, 0);
@@ -170,6 +198,16 @@ public class GamePanel extends SurfaceView implements SurfaceHolder.Callback {
 		return true;
 	}
 	
+	public void pause()
+	{
+		thread.setRunning(false);
+	}
+	
+	public void resume()
+	{
+		thread.setRunning(true);
+	}
+	
 	@Override
 	protected void onDraw(Canvas canvas)
 	{
@@ -188,6 +226,9 @@ public class GamePanel extends SurfaceView implements SurfaceHolder.Callback {
 		
 		explosions.removeAll(deadExplosions);
 		deadExplosions.clear();
+		
+		ships.removeAll(deadShips);
+		deadShips.clear();
 	}
 	
 	protected void render(Canvas canvas)
@@ -199,11 +240,17 @@ public class GamePanel extends SurfaceView implements SurfaceHolder.Callback {
 			//ship.draw(canvas);
 			if(city != null)
 				city.draw(canvas);
+			
+			for(Ship s : ships)
+			{
+				s.draw(canvas);
+			}
+
 			for(Explosion e : explosions)
 			{
 				e.draw(canvas);
 			}
-			
+
 			for(CityMissile c : cityMissiles)
 			{
 				c.draw(canvas);
@@ -222,7 +269,7 @@ public class GamePanel extends SurfaceView implements SurfaceHolder.Callback {
 		
 		if(city != null)
 			city.update();
-		
+
 		for(Explosion e : explosions)
 		{
 			e.update();
@@ -232,6 +279,7 @@ public class GamePanel extends SurfaceView implements SurfaceHolder.Callback {
 				cleanupNeeded = true;
 			}
 		}
+
 		
 		if(!queuedCityMissiles.isEmpty())
 		{
@@ -266,9 +314,30 @@ public class GamePanel extends SurfaceView implements SurfaceHolder.Callback {
 				cleanupNeeded = true;
 			}
 		}
+	
+		for(Ship s : ships)
+		{
+			s.update(width);
+			boolean spawnExplosion = false;
+			for(Explosion e : explosions)
+			{
+				if(s.hasCollided(e))
+				{
+					spawnExplosion = true;
+					addScore(s.getPointsWorth());
+					deadShips.add(s);
+					cleanupNeeded = true;
+				}
+			}
+			//avoiding a ConcurrentModificationException
+			if(spawnExplosion)
+				explosions.add(new Explosion((int)s.getX(), (int)s.getY()));
+		}
 		
 		if(cleanupNeeded)
 			cleanupSprites();
+		
+		tryToSpawn();
 	}
 	
 	public void setAvgFPS(String avgFPS)
@@ -280,7 +349,7 @@ public class GamePanel extends SurfaceView implements SurfaceHolder.Callback {
 	{
 		if(canvas != null)
 		{
-			canvas.drawText(scoreText, 30, 30, hudPaint);
+			canvas.drawText(scoreText + score, 30, 30, hudPaint);
 		}
 	}
 	
@@ -291,5 +360,77 @@ public class GamePanel extends SurfaceView implements SurfaceHolder.Callback {
 			canvas.drawText(fps,  this.getWidth() - 100, 20, fpsPaint);
 		}
 	}
+	
+	private void tryToSpawn()
+	{
+		if((System.currentTimeMillis() - timeLastEnemySpawn) >= ENEMY_SPAWN_INTERVAL)
+		{
+			timeLastEnemySpawn = System.currentTimeMillis();
+			
+			int randEnemyType = (int)(100 * Math.random());
+			if(randEnemyType >= 50)
+			{
+				for(int i = 0; i < Math.max(difficultyLevel, difficultyLevel - ships.size()); i++)
+				{
+					spawnFrigate();
+				}
+			}
+			else if(randEnemyType >= 0)
+			{
+				for(int i = 0; i < Math.max(difficultyLevel, difficultyLevel - ships.size()); i++)
+				{
+					spawnJet();
+				}
+			}
+			else
+			{
+				//spawn a missile from sky
+			}
+			
+		}
+	}
 
+	//spawn a jet with a random direction
+	private void spawnJet()
+	{
+		Bitmap jetBitmap;
+		
+		int randDirection = (int)(Math.random() * 10);
+		int randHeight = (int)(((float)height * .1) + (Math.random() * (float)height * .3));
+		
+		//spawn right-facing jet
+		if(randDirection < 5)
+		{
+			jetBitmap = BitmapFactory.decodeResource(getResources(), R.drawable.jet_r);
+			ships.add(new Jet(jetBitmap, 0 - jetBitmap.getWidth(), randHeight));
+		}
+		//spawn left-facing jet
+		else
+		{
+			jetBitmap = BitmapFactory.decodeResource(getResources(), R.drawable.jet_l);
+			ships.add(new Jet(jetBitmap, width, randHeight));
+		}
+	}
+	
+	//spawn a frigate with a random direction
+	private void spawnFrigate()
+	{
+		Bitmap frigateBitmap;
+		
+		int randDirection = (int)(Math.random() * 10);
+		int randHeight = (int)(((float)height * .1) + (Math.random() * (float)height * .3));
+		
+		//spawn right-facing frigate
+		if(randDirection < 5)
+		{
+			frigateBitmap = BitmapFactory.decodeResource(getResources(), R.drawable.frigate_r);
+			ships.add(new Frigate(frigateBitmap, 0 - frigateBitmap.getWidth(), randHeight));
+		}
+		//spawn left-facing frigate
+		else
+		{
+			frigateBitmap = BitmapFactory.decodeResource(getResources(), R.drawable.frigate_l);
+			ships.add(new Jet(frigateBitmap, width, randHeight));
+		}
+	}
 }

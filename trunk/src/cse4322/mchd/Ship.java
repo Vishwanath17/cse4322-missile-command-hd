@@ -5,13 +5,19 @@ import android.graphics.Canvas;
 
 public interface Ship {
 	
-	public boolean getCollided (Explosion e);
+	public boolean hasCollided (Explosion e);
 	
-	public Ordinance getOrdinance();
+	public Ordnance getOrdnance();
 	
 	public boolean readyToFire();
 	
-	public void update();
+	public int getPointsWorth();
+	
+	public float getX();
+	
+	public float getY();
+	
+	public void update(int width);
 	
 	public void draw(Canvas canvas);
 

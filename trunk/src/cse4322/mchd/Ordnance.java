@@ -2,7 +2,7 @@ package cse4322.mchd;
 
 import android.graphics.Canvas;
 
-public interface Ordinance {
+public interface Ordnance {
 	
 	public boolean hasCollided(Explosion e);
 	
