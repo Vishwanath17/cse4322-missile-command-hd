@@ -47,6 +47,9 @@ public class GamePanel extends SurfaceView implements SurfaceHolder.Callback {
 	private ArrayList<Ordnance> ordnance;
 	private ArrayList<Ordnance> deadOrdnance;
 	
+	private ArrayList<Prize> prizes;
+	private ArrayList<Prize> deadPrizes;
+	
 	//the fps to be displayed
 	private String avgFPS;
 	private String scoreText;
@@ -70,8 +73,6 @@ public class GamePanel extends SurfaceView implements SurfaceHolder.Callback {
 		timeLastPrizeSpawn = System.currentTimeMillis();
 		timeLastDifficultyIncrease = System.currentTimeMillis();
 		
-		//create ship and load bitmap
-		//ship = new Ship(BitmapFactory.decodeResource(getResources(), R.drawable.frigate_l), 360, 640);
 		cityMissiles = new ArrayList<CityMissile>();
 		queuedCityMissiles = new ArrayList<CityMissile>();
 		deadCityMissiles = new ArrayList<CityMissile>();
@@ -84,6 +85,9 @@ public class GamePanel extends SurfaceView implements SurfaceHolder.Callback {
 		
 		ordnance = new ArrayList<Ordnance>();
 		deadOrdnance = new ArrayList<Ordnance>();
+		
+		prizes = new ArrayList<Prize>();
+		deadPrizes = new ArrayList<Prize>();
 		
 		scorePaint = new Paint();
 		scorePaint.setARGB(255, 0, 255, 0);
@@ -153,52 +157,25 @@ public class GamePanel extends SurfaceView implements SurfaceHolder.Callback {
 	public boolean onTouchEvent(MotionEvent event)
 	{
 		if(event.getAction() == MotionEvent.ACTION_DOWN)
-		{
-			//delegating event handling to the ship
-			//ship.handleActionDown((int)event.getX(), (int)event.getY());
-			
-			//end the game if the bottom of the screen is tapped
-			/*
-			if(event.getY() > getHeight() - 50)
-			{
-				thread.setRunning(false);
-				((Activity) getContext()).finish();
-			}
-			else
-			{
-				Log.d(TAG, "Coords: x=" + event.getX() + ",y=" + event.getY());
-			}*/
-			
+		{	
 			if(event.getY() < height - city.getHeight())
 			{
 				if(city.readyToFire())
 				{
 					//adding a missile directly into the city missile list while updating/drawing could throw a ConcurrentModificationException, crashing the game.
-					queuedCityMissiles.add(new CityMissile(BitmapFactory.decodeResource(getResources(), R.drawable.city_missile), BitmapFactory.decodeResource(getResources(), R.drawable.target), city.getMidX(), city.getMidY(), (int)event.getX(), (int)event.getY()));
+					queuedCityMissiles.add(new CityMissile(BitmapFactory.decodeResource(getResources(), R.drawable.city_missile), BitmapFactory.decodeResource(getResources(), R.drawable.target), city.getMidX(), city.getMidY(), (int)event.getX(), (int)event.getY(), city.getSpeedBonus()));
 				}
 			}
 		}
 		
 		if(event.getAction() == MotionEvent.ACTION_MOVE)
 		{
-			//the gestures
-			/*
-			if(ship.isTouched())
-			{
-				//the ship was picked up and is being dragged
-				ship.setX((int)event.getX());
-				ship.setY((int)event.getY());
-			}*/
+
 		}
 		
 		if(event.getAction() == MotionEvent.ACTION_UP)
 		{
-			//touch was released
-			/*
-			if(ship.isTouched())
-			{
-				ship.setTouched(false);
-			}*/
+
 		}
 		return true;
 	}
@@ -224,6 +201,7 @@ public class GamePanel extends SurfaceView implements SurfaceHolder.Callback {
 		score += points;
 	}
 	
+	//go through all sprite arraylists and cleanup "dead" sprites
 	private void cleanupSprites()
 	{
 		cityMissiles.removeAll(deadCityMissiles);
@@ -237,32 +215,48 @@ public class GamePanel extends SurfaceView implements SurfaceHolder.Callback {
 		
 		ordnance.removeAll(deadOrdnance);
 		deadOrdnance.clear();
+		
+		prizes.removeAll(deadPrizes);
+		deadPrizes.clear();
 	}
 	
+	//update the picture on the screen, order is important here
 	protected void render(Canvas canvas)
 	{
 		if(canvas != null)
 		{
 			//fill the canvas with black
 			canvas.drawColor(Color.BLACK);
-			//ship.draw(canvas);
+			
+			//draw the city
 			if(city != null)
 				city.draw(canvas);
+			
+			//draw all prizes
+			for(Prize p : prizes)
+			{
+				p.draw(canvas);
+			}
+			
+			//draw all enemy ordnance
 			for(Ordnance o : ordnance)
 			{
 				o.draw(canvas);
 			}
 			
+			//draw all enemy ships
 			for(Ship s : ships)
 			{
 				s.draw(canvas);
 			}
 
+			//draw all explosions
 			for(Explosion e : explosions)
 			{
 				e.draw(canvas);
 			}
 
+			//draw all city missiles
 			for(CityMissile c : cityMissiles)
 			{
 				c.draw(canvas);
@@ -275,16 +269,21 @@ public class GamePanel extends SurfaceView implements SurfaceHolder.Callback {
 		}
 	}
 	
+	//update game entities
 	protected void update()
 	{
+		//don't call the sprite cleanup if we don't need to
 		cleanupNeeded = false;
 		
+		//update the city
 		if(city != null)
 			city.update();
 
+		//update explosions
 		for(Explosion e : explosions)
 		{
 			e.update();
+			//cleanup expired explosions
 			if(e.hasExpired())
 			{
 				deadExplosions.add(e);
@@ -292,13 +291,14 @@ public class GamePanel extends SurfaceView implements SurfaceHolder.Callback {
 			}
 		}
 
-		
+		//add any queued up city missiles to active city missiles
 		if(!queuedCityMissiles.isEmpty())
 		{
 			cityMissiles.addAll(queuedCityMissiles);
 			queuedCityMissiles.clear();
 		}
 		
+		//update active city missiles
 		for(CityMissile c : cityMissiles)
 		{
 			c.update();
@@ -327,13 +327,14 @@ public class GamePanel extends SurfaceView implements SurfaceHolder.Callback {
 			}
 		}
 	
+		//update all enemy ships
 		for(Ship s : ships)
 		{
 			s.update(width);
 			boolean spawnExplosion = false;
 			for(Explosion e : explosions)
 			{
-				if(s.hasCollided(e))
+				if(s.hasCollided(e) && !spawnExplosion)
 				{
 					spawnExplosion = true;
 					addScore(s.getPointsWorth());
@@ -341,17 +342,19 @@ public class GamePanel extends SurfaceView implements SurfaceHolder.Callback {
 					cleanupNeeded = true;
 				}
 			}
+			//create an explosion where the ship was if it touched an explosion
 			if(spawnExplosion)
 				explosions.add(new Explosion((int)s.getX(), (int)s.getY()));
 		}
 		
+		//update enemy ordnance
 		for(Ordnance o : ordnance)
 		{
 			o.update();
 			boolean spawnExplosion = false;
 			for(Explosion e : explosions)
 			{
-				if(o.hasCollided(e))
+				if(o.hasCollided(e) && !spawnExplosion)
 				{
 					spawnExplosion = true;
 					addScore(o.getPointsWorth());
@@ -372,13 +375,36 @@ public class GamePanel extends SurfaceView implements SurfaceHolder.Callback {
 				}
 			}
 			
+			//create an explosions where the ordnance was if it touched an explosion or city
 			if(spawnExplosion)
 				explosions.add(new Explosion((int)o.getX(), (int)o.getY()));
+		}
+		
+		//update prizes
+		for(Prize p : prizes)
+		{
+			p.update();
+			boolean wasDestroyed = false;
+			for(Explosion e : explosions)
+			{
+				if(p.hasCollided(e) && !wasDestroyed)
+				{
+					addScore(p.getPointsWorth());
+					p.applyBonus(city);
+					deadPrizes.add(p);
+					cleanupNeeded = true;
+				}
+			}
 		}
 		
 		if(cleanupNeeded)
 			cleanupSprites();
 		
+		//update the difficulty level if it is less than 10, 10 is highest
+		if(difficultyLevel < 10)
+			updateDifficultyLevel();
+		
+		//attempt to spawn any new enemy entities or power-ups
 		tryToSpawn();
 	}
 	
@@ -387,15 +413,32 @@ public class GamePanel extends SurfaceView implements SurfaceHolder.Callback {
 		this.avgFPS = avgFPS;
 	}
 	
+	//draw the HUD on the screen (Score, Health, reload/shield power bars)
 	private void displayHUD(Canvas canvas)
 	{
 		if(canvas != null && city != null)
 		{
-			canvas.drawText(scoreText + score, 30, 30, scorePaint);
+			canvas.drawText(scoreText + score, 30, 30, scorePaint);	
+			
+			//change color of health text based on city's current health
+			if(city.getHealth() < 33)
+			{
+				healthPaint.setARGB(255, 255, 0, 0);
+			}
+			else if(city.getHealth() < 66)
+			{
+				healthPaint.setARGB(255, 255, 255, 0);
+			}
+			else
+			{
+				healthPaint.setARGB(255, 0, 255, 0);
+			}
+			
 			canvas.drawText(healthText + city.getHealth(), 30, height - 50, healthPaint);
 		}
 	}
 	
+	//display the FPS on the screen
 	private void displayFPS(Canvas canvas, String fps)
 	{
 		if(canvas != null & fps != null)
@@ -404,13 +447,35 @@ public class GamePanel extends SurfaceView implements SurfaceHolder.Callback {
 		}
 	}
 	
+	//increase the difficulty level
+	private void updateDifficultyLevel()
+	{
+		//increase difficulty level every X milliseconds, defined in DIFFICULTY_INCREASE_INTERVAL
+		if((System.currentTimeMillis() - timeLastDifficultyIncrease) >= DIFFICULTY_INCREASE_INTERVAL)
+		{
+			//max difficulty level of 10
+			difficultyLevel = Math.min(difficultyLevel++, 10);
+			timeLastDifficultyIncrease = System.currentTimeMillis();
+		}
+	}
+	
+	//try to spawn jets, frigates, missiles, bombs, or power-ups
 	private void tryToSpawn()
 	{
+		//only try to spawn enemy entities every X milliseconds, defined in ENEMY_SPAWN_INTERVAL
 		if((System.currentTimeMillis() - timeLastEnemySpawn) >= ENEMY_SPAWN_INTERVAL)
 		{
 			timeLastEnemySpawn = System.currentTimeMillis();
 			
+			//spawn random missiles and bombs from ships
+			for(Ship s : ships)
+			{
+				if(s.readyToFire(difficultyLevel))
+					ordnance.add(s.getOrdnance(getContext(), city.getMidX(), city.getMidY()));
+			}
+			
 			int randEnemyType = (int)(100 * Math.random());
+			//spawn frigates
 			if(randEnemyType >= 90)
 			{
 				for(int i = 0; i < Math.max(difficultyLevel, difficultyLevel - ships.size()); i++)
@@ -418,6 +483,7 @@ public class GamePanel extends SurfaceView implements SurfaceHolder.Callback {
 					spawnFrigate();
 				}
 			}
+			//spawn jets
 			else if(randEnemyType >= 65)
 			{
 				for(int i = 0; i < Math.max(difficultyLevel, difficultyLevel - ships.size()); i++)
@@ -425,6 +491,7 @@ public class GamePanel extends SurfaceView implements SurfaceHolder.Callback {
 					spawnJet();
 				}
 			}
+			//spawn orbital missiles
 			else
 			{
 				for(int i = 0; i < Math.max(difficultyLevel, difficultyLevel - ordnance.size()); i++)
@@ -432,7 +499,31 @@ public class GamePanel extends SurfaceView implements SurfaceHolder.Callback {
 					spawnMissile();
 				}
 			}
+		}
+		
+		//only try to spawn prizes every X milliseconds, defined in PRIZE_SPAWN_INTERVAL
+		if((System.currentTimeMillis() - timeLastPrizeSpawn) >= PRIZE_SPAWN_INTERVAL)
+		{
+			timeLastPrizeSpawn = System.currentTimeMillis();
 			
+			int randPrizeType = (int)(40 * Math.random());
+			
+			if(randPrizeType >= 37)
+			{
+				spawnShieldPrize();
+			}
+			else if(randPrizeType >= 30)
+			{
+				spawnHealthPrize();
+			}
+			else if(randPrizeType >= 15)
+			{
+				spawnReloadPrize();
+			}
+			else
+			{
+				spawnSpeedPrize();
+			}
 		}
 	}
 
@@ -442,7 +533,7 @@ public class GamePanel extends SurfaceView implements SurfaceHolder.Callback {
 		Bitmap jetBitmap;
 		
 		int randDirection = (int)(Math.random() * 10);
-		int randHeight = (int)(((float)height * .1) + (Math.random() * (float)height * .3));
+		int randHeight = (int)(((float)height * .1) + (Math.random() * (float)height * .4));
 		
 		//spawn right-facing jet
 		if(randDirection < 5)
@@ -464,7 +555,7 @@ public class GamePanel extends SurfaceView implements SurfaceHolder.Callback {
 		Bitmap frigateBitmap;
 		
 		int randDirection = (int)(Math.random() * 10);
-		int randHeight = (int)(((float)height * .1) + (Math.random() * (float)height * .3));
+		int randHeight = (int)(((float)height * .1) + (Math.random() * (float)height * .4));
 		
 		//spawn right-facing frigate
 		if(randDirection < 5)
@@ -476,7 +567,7 @@ public class GamePanel extends SurfaceView implements SurfaceHolder.Callback {
 		else
 		{
 			frigateBitmap = BitmapFactory.decodeResource(getResources(), R.drawable.frigate_l);
-			ships.add(new Jet(frigateBitmap, width, randHeight));
+			ships.add(new Frigate(frigateBitmap, width, randHeight));
 		}
 	}
 	
@@ -485,5 +576,45 @@ public class GamePanel extends SurfaceView implements SurfaceHolder.Callback {
 	{
 		Bitmap missileBitmap = BitmapFactory.decodeResource(getResources(), R.drawable.enemy_missile);
 		ordnance.add(new Missile(missileBitmap, (int)(width * Math.random()), 0 - missileBitmap.getHeight(), city.getMidX(), city.getMidY()));
+	}
+	
+	//spawn a health prize randomly in the sky
+	private void spawnHealthPrize()
+	{
+		int randX = (int)((width * 0.05) + (Math.random() * width * 0.9));
+		int randY = (int)((height * 0.1) + (Math.random() * height * 0.4));
+		Bitmap healthPrizeBitmap = BitmapFactory.decodeResource(getResources(), R.drawable.health_prize);
+		
+		prizes.add(new HealthPrize(healthPrizeBitmap, randX, randY));
+	}
+	
+	//spawn a shield prize randomly in the sky
+	private void spawnShieldPrize()
+	{
+		int randX = (int)((width * 0.05) + (Math.random() * width * 0.9));
+		int randY = (int)((height * 0.1) + (Math.random() * height * 0.4));
+		Bitmap shieldPrizeBitmap = BitmapFactory.decodeResource(getResources(), R.drawable.shield_prize);
+		
+		prizes.add(new ShieldPrize(shieldPrizeBitmap, randX, randY));
+	}
+	
+	//spawn a reload prize randomly in the sky
+	private void spawnReloadPrize()
+	{
+		int randX = (int)((width * 0.05) + (Math.random() * width * 0.9));
+		int randY = (int)((height * 0.1) + (Math.random() * height * 0.4));
+		Bitmap reloadPrizeBitmap = BitmapFactory.decodeResource(getResources(), R.drawable.reload_prize);
+
+		prizes.add(new ReloadPrize(reloadPrizeBitmap, randX, randY));
+	}
+	
+	//spawn a speed prize randomly in the sky
+	private void spawnSpeedPrize()
+	{
+		int randX = (int)((width * 0.05) + (Math.random() * width * 0.9));
+		int randY = (int)((height * 0.1) + (Math.random() * height * 0.4));
+		Bitmap speedPrizeBitmap = BitmapFactory.decodeResource(getResources(), R.drawable.speed_prize);
+		
+		prizes.add(new SpeedPrize(speedPrizeBitmap, randX, randY));
 	}
 }

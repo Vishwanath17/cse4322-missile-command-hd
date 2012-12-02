@@ -35,11 +35,11 @@ public class Frigate implements Ship {
 	}
 
 	@Override
-	public boolean readyToFire() 
+	public boolean readyToFire(int difficultyLevel) 
 	{
 		int randomFire = (int)(Math.random() * 100);
 		
-		if(randomFire < 25)
+		if(randomFire < (13 + difficultyLevel * 5))
 			return true;
 		else
 			return false;
