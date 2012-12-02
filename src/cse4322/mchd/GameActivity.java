@@ -40,6 +40,7 @@ public class GameActivity extends Activity {
         //making it full screen
         //getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
         getWindow().setFlags(WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED, WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED);
+        getWindow().setFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON, WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         //set out GamePanel as the View
         gamePanel = new GamePanel(this);
         setContentView(gamePanel);
@@ -58,5 +59,21 @@ public class GameActivity extends Activity {
     {
     	Log.d(TAG, "Stopping...");
     	super.onStop();
+    }
+    
+    @Override
+    protected void onResume()
+    {
+    	Log.d(TAG, "Resuming...");
+    	super.onResume();
+    	gamePanel.resume();
+    }
+    
+    @Override
+    protected void onPause()
+    {
+    	Log.d(TAG, "Pausing...");
+    	super.onPause();
+    	gamePanel.pause();
     }
 }
