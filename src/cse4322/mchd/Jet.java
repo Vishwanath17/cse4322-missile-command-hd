@@ -1,13 +1,15 @@
 package cse4322.mchd;
 
+import android.content.Context;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 
 public class Jet implements Ship 
 {
-	private static final float SPEED = 3;
+	private static final double SPEED = 3;
 	private static final int POINTS_WORTH = 5;
-	private float x, y, dx;
+	private double x, y, dx;
 	private Bitmap bitmap;
 
 	@Override
@@ -27,8 +29,9 @@ public class Jet implements Ship
 	}
 
 	@Override
-	public Ordnance getOrdnance() {
-		return null;
+	public Ordnance getOrdnance(Context context, int targetX, int targetY) 
+	{
+		return new Missile(BitmapFactory.decodeResource(context.getResources(), R.drawable.enemy_missile), (int)getX(), (int)getY(), targetX, targetY);
 	}
 
 	@Override
@@ -55,7 +58,7 @@ public class Jet implements Ship
 	@Override
 	public void draw(Canvas canvas) 
 	{
-		canvas.drawBitmap(bitmap, x, y, null);
+		canvas.drawBitmap(bitmap, (int)x, (int)y, null);
 	}
 	
 	public Jet(Bitmap bitmap, int x, int y)
@@ -77,13 +80,13 @@ public class Jet implements Ship
 	}
 
 	@Override
-	public float getX() 
+	public double getX() 
 	{
 		return x + bitmap.getWidth()/2;
 	}
 
 	@Override
-	public float getY() 
+	public double getY() 
 	{
 		return y + bitmap.getHeight()/2;
 	}

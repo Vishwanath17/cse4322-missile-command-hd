@@ -52,7 +52,8 @@ public class GamePanel extends SurfaceView implements SurfaceHolder.Callback {
 	private String scoreText;
 	private String healthText;
 	
-	private Paint hudPaint;
+	private Paint scorePaint;
+	private Paint healthPaint;
 	private Paint fpsPaint;
 
 	public GamePanel(Context context)
@@ -84,9 +85,13 @@ public class GamePanel extends SurfaceView implements SurfaceHolder.Callback {
 		ordnance = new ArrayList<Ordnance>();
 		deadOrdnance = new ArrayList<Ordnance>();
 		
-		hudPaint = new Paint();
-		hudPaint.setARGB(255, 0, 255, 0);
-		hudPaint.setTextSize(20);
+		scorePaint = new Paint();
+		scorePaint.setARGB(255, 0, 255, 0);
+		scorePaint.setTextSize(20);
+		
+		healthPaint = new Paint();
+		healthPaint.setARGB(255, 0, 255, 0);
+		healthPaint.setTextSize(20);
 		
 		fpsPaint = new Paint();
 		fpsPaint.setARGB(255, 255, 255, 255);
@@ -229,6 +234,9 @@ public class GamePanel extends SurfaceView implements SurfaceHolder.Callback {
 		
 		ships.removeAll(deadShips);
 		deadShips.clear();
+		
+		ordnance.removeAll(deadOrdnance);
+		deadOrdnance.clear();
 	}
 	
 	protected void render(Canvas canvas)
@@ -240,6 +248,10 @@ public class GamePanel extends SurfaceView implements SurfaceHolder.Callback {
 			//ship.draw(canvas);
 			if(city != null)
 				city.draw(canvas);
+			for(Ordnance o : ordnance)
+			{
+				o.draw(canvas);
+			}
 			
 			for(Ship s : ships)
 			{
@@ -329,9 +341,39 @@ public class GamePanel extends SurfaceView implements SurfaceHolder.Callback {
 					cleanupNeeded = true;
 				}
 			}
-			//avoiding a ConcurrentModificationException
 			if(spawnExplosion)
 				explosions.add(new Explosion((int)s.getX(), (int)s.getY()));
+		}
+		
+		for(Ordnance o : ordnance)
+		{
+			o.update();
+			boolean spawnExplosion = false;
+			for(Explosion e : explosions)
+			{
+				if(o.hasCollided(e))
+				{
+					spawnExplosion = true;
+					addScore(o.getPointsWorth());
+					deadOrdnance.add(o);
+					cleanupNeeded = true;
+				}
+			}
+			
+			//Don't check for city collision if collided with explosion, favors player
+			if(!spawnExplosion)
+			{
+				//checks if city was hit by ordnance, city handles any damage taken
+				if(city.wasHit(o))
+				{
+					spawnExplosion = true;
+					deadOrdnance.add(o);
+					cleanupNeeded = true;
+				}
+			}
+			
+			if(spawnExplosion)
+				explosions.add(new Explosion((int)o.getX(), (int)o.getY()));
 		}
 		
 		if(cleanupNeeded)
@@ -347,9 +389,10 @@ public class GamePanel extends SurfaceView implements SurfaceHolder.Callback {
 	
 	private void displayHUD(Canvas canvas)
 	{
-		if(canvas != null)
+		if(canvas != null && city != null)
 		{
-			canvas.drawText(scoreText + score, 30, 30, hudPaint);
+			canvas.drawText(scoreText + score, 30, 30, scorePaint);
+			canvas.drawText(healthText + city.getHealth(), 30, height - 50, healthPaint);
 		}
 	}
 	
@@ -368,14 +411,14 @@ public class GamePanel extends SurfaceView implements SurfaceHolder.Callback {
 			timeLastEnemySpawn = System.currentTimeMillis();
 			
 			int randEnemyType = (int)(100 * Math.random());
-			if(randEnemyType >= 50)
+			if(randEnemyType >= 90)
 			{
 				for(int i = 0; i < Math.max(difficultyLevel, difficultyLevel - ships.size()); i++)
 				{
 					spawnFrigate();
 				}
 			}
-			else if(randEnemyType >= 0)
+			else if(randEnemyType >= 65)
 			{
 				for(int i = 0; i < Math.max(difficultyLevel, difficultyLevel - ships.size()); i++)
 				{
@@ -384,7 +427,10 @@ public class GamePanel extends SurfaceView implements SurfaceHolder.Callback {
 			}
 			else
 			{
-				//spawn a missile from sky
+				for(int i = 0; i < Math.max(difficultyLevel, difficultyLevel - ordnance.size()); i++)
+				{
+					spawnMissile();
+				}
 			}
 			
 		}
@@ -432,5 +478,12 @@ public class GamePanel extends SurfaceView implements SurfaceHolder.Callback {
 			frigateBitmap = BitmapFactory.decodeResource(getResources(), R.drawable.frigate_l);
 			ships.add(new Jet(frigateBitmap, width, randHeight));
 		}
+	}
+	
+	//spawn a missile from orbit aimed at the city
+	private void spawnMissile()
+	{
+		Bitmap missileBitmap = BitmapFactory.decodeResource(getResources(), R.drawable.enemy_missile);
+		ordnance.add(new Missile(missileBitmap, (int)(width * Math.random()), 0 - missileBitmap.getHeight(), city.getMidX(), city.getMidY()));
 	}
 }
