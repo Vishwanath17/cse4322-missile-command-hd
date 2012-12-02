@@ -10,7 +10,7 @@ public interface Ship {
 	
 	public Ordnance getOrdnance(Context context, int targetX, int targetY);
 	
-	public boolean readyToFire();
+	public boolean readyToFire(int difficultyLevel);
 	
 	public int getPointsWorth();
 	

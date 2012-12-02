@@ -4,7 +4,8 @@ import android.graphics.Bitmap;
 import android.graphics.Canvas;
 
 public class CityMissile {
-	private static final double SPEED = 5;
+	private static final double SPEED = 3;
+	private static final double BONUS_SPEED = 1;
 	
 	private double x, y, destX, destY, dx, dy;
 	private Bitmap missileBitmap, targetBitmap;
@@ -36,8 +37,8 @@ public class CityMissile {
 	
 	public void update()
 	{
-		x = x + (SPEED * Math.cos(angle));
-		y = y - (SPEED * Math.sin(angle));
+		x += dx;
+		y += dy;
 		
 		if((Math.sqrt(Math.pow(destX - x, 2) + Math.pow(destY - y, 2))) < 20)
 				detonated = true;
@@ -57,7 +58,7 @@ public class CityMissile {
 		canvas.drawBitmap(targetBitmap, (int)destX - (targetBitmap.getWidth()/2), (int)destY - (missileBitmap.getHeight()/2), null);
 	}
 	
-	public CityMissile(Bitmap missileBitmap, Bitmap targetBitmap, int x, int y, int destX, int destY)
+	public CityMissile(Bitmap missileBitmap, Bitmap targetBitmap, int x, int y, int destX, int destY, int speedBonus)
 	{
 		this.missileBitmap = missileBitmap;
 		this.targetBitmap = targetBitmap;
@@ -67,8 +68,8 @@ public class CityMissile {
 		this.destY = destY;
 		angle = (double) Math.atan2(y - destY, destX - x);
 		
-		this.dx = (SPEED * Math.cos(angle));
-		this.dy =  0 - (SPEED * Math.sin(angle));
+		this.dx = ((SPEED + (BONUS_SPEED * speedBonus)) * Math.cos(angle));
+		this.dy =  0 - ((SPEED + (BONUS_SPEED * speedBonus)) * Math.sin(angle));
 	}
 
 }
