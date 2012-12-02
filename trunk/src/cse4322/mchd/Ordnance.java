@@ -6,11 +6,13 @@ public interface Ordnance {
 	
 	public boolean hasCollided(Explosion e);
 	
-	public boolean hasCollided(City c);
-	
 	public int getDamage();
 	
-	public int getPointWorth();
+	public int getPointsWorth();
+	
+	public double getX();
+	
+	public double getY();
 	
 	public void update();
 	
