@@ -157,7 +157,7 @@ public class GamePanel extends SurfaceView implements SurfaceHolder.Callback {
 		
 		//create city and load bitmap
 		if(city == null)
-			city = new City(BitmapFactory.decodeResource(getResources(), R.drawable.dallas), this.getWidth(), this.getHeight());
+			city = new City(BitmapFactory.decodeResource(getResources(), R.drawable.city), this.getWidth(), this.getHeight());
 	}
 	
 	@Override
