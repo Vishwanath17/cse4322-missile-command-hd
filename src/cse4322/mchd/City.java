@@ -7,7 +7,7 @@ import android.graphics.Paint;
 public class City {
 	
 	private static final int MAX_RELOAD_TIME = 100;
-	private static final int MAX_HEALTH = 100;
+	private static final int MAX_HEALTH = 10;
 	private static final int MAX_SHIELD_POWER = 30;
 	
 	private Bitmap bitmap;
@@ -25,8 +25,7 @@ public class City {
 	{
 		if(reloadTimeLeft <= 0)
 		{
-			//reload time is set to max reload time - 25% * the reload bonus level (meaning we go from 100% reload time to 25% at max bonus level)
-			reloadTimeLeft = MAX_RELOAD_TIME - ((MAX_RELOAD_TIME/4) * reloadBonusLevel);
+			reloadTimeLeft = MAX_RELOAD_TIME;
 			return true;
 		}
 		else
@@ -171,7 +170,7 @@ public class City {
 	public void update()
 	{
 		if(reloadTimeLeft > 0)
-			reloadTimeLeft--;
+			reloadTimeLeft -= (1 + reloadBonusLevel);
 		if(afterDamageWait > 0)
 		{
 			afterDamageWait--;

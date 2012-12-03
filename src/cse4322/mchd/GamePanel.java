@@ -31,7 +31,7 @@ public class GamePanel extends SurfaceView implements SurfaceHolder.Callback {
 	
 	private int difficultyLevel = 1;
 	
-	private boolean cleanupNeeded = false;
+	private boolean cleanupNeeded = false, gameOver = false;
 	//private Ship ship;
 	private City city;
 	private ArrayList<CityMissile> cityMissiles;
@@ -54,9 +54,17 @@ public class GamePanel extends SurfaceView implements SurfaceHolder.Callback {
 	private String avgFPS;
 	private String scoreText;
 	private String healthText;
+	private String difficultyText;
+	private String gameOverText;
+	private String finalScoreText;
 	
 	private Paint scorePaint;
 	private Paint healthPaint;
+	private Paint difficultyPaint;
+	private Paint reloadBarPaint;
+	private Paint shieldPowerBarPaint;
+	private Paint gameOverPaint;
+	private Paint finalScorePaint;
 	private Paint fpsPaint;
 
 	public GamePanel(Context context)
@@ -68,6 +76,9 @@ public class GamePanel extends SurfaceView implements SurfaceHolder.Callback {
 		
 		scoreText = context.getString(R.string.score);
 		healthText = context.getString(R.string.city_health);
+		difficultyText = context.getString(R.string.difficulty_level);
+		gameOverText = context.getString(R.string.game_over);
+		finalScoreText = context.getString(R.string.final_score);
 		
 		timeLastEnemySpawn = System.currentTimeMillis();
 		timeLastPrizeSpawn = System.currentTimeMillis();
@@ -90,15 +101,33 @@ public class GamePanel extends SurfaceView implements SurfaceHolder.Callback {
 		deadPrizes = new ArrayList<Prize>();
 		
 		scorePaint = new Paint();
-		scorePaint.setARGB(255, 0, 255, 0);
+		scorePaint.setARGB(255, 0, 255, 0);				//green
 		scorePaint.setTextSize(20);
 		
 		healthPaint = new Paint();
-		healthPaint.setARGB(255, 0, 255, 0);
+		healthPaint.setARGB(255, 0, 255, 0);			//green
 		healthPaint.setTextSize(20);
 		
+		difficultyPaint = new Paint();
+		difficultyPaint.setARGB(255, 255, 0, 0);		//red
+		difficultyPaint.setTextSize(25);
+		
+		reloadBarPaint = new Paint();
+		reloadBarPaint.setARGB(255, 255, 255, 0);		//yellow
+		
+		shieldPowerBarPaint = new Paint();
+		shieldPowerBarPaint.setARGB(255, 0, 255, 255);	//cyan
+		
+		gameOverPaint = new Paint();
+		gameOverPaint.setARGB(255, 255, 0, 0);			//red
+		gameOverPaint.setTextSize(100);
+		
+		finalScorePaint = new Paint();
+		finalScorePaint.setARGB(255, 255, 0, 0);		//red
+		finalScorePaint.setTextSize(30);
+		
 		fpsPaint = new Paint();
-		fpsPaint.setARGB(255, 255, 255, 255);
+		fpsPaint.setARGB(255, 255, 255, 255);			//white
 		fpsPaint.setTextSize(20);
 		
 		
@@ -228,42 +257,50 @@ public class GamePanel extends SurfaceView implements SurfaceHolder.Callback {
 			//fill the canvas with black
 			canvas.drawColor(Color.BLACK);
 			
-			//draw the city
-			if(city != null)
-				city.draw(canvas);
-			
-			//draw all prizes
-			for(Prize p : prizes)
+			//if game is not over, draw entities and HUD
+			if(!gameOver)
 			{
-				p.draw(canvas);
+				//draw the city
+				if(city != null)
+					city.draw(canvas);
+				
+				//draw all prizes
+				for(Prize p : prizes)
+				{
+					p.draw(canvas);
+				}
+				
+				//draw all enemy ordnance
+				for(Ordnance o : ordnance)
+				{
+					o.draw(canvas);
+				}
+				
+				//draw all enemy ships
+				for(Ship s : ships)
+				{
+					s.draw(canvas);
+				}
+	
+				//draw all explosions
+				for(Explosion e : explosions)
+				{
+					e.draw(canvas);
+				}
+	
+				//draw all city missiles
+				for(CityMissile c : cityMissiles)
+				{
+					c.draw(canvas);
+				}
+				
+				//display HUD
+				displayHUD(canvas);
 			}
-			
-			//draw all enemy ordnance
-			for(Ordnance o : ordnance)
+			else
 			{
-				o.draw(canvas);
+				displayGameOver(canvas);
 			}
-			
-			//draw all enemy ships
-			for(Ship s : ships)
-			{
-				s.draw(canvas);
-			}
-
-			//draw all explosions
-			for(Explosion e : explosions)
-			{
-				e.draw(canvas);
-			}
-
-			//draw all city missiles
-			for(CityMissile c : cityMissiles)
-			{
-				c.draw(canvas);
-			}
-			
-			//display HUD
-			displayHUD(canvas);
 			//display fps
 			displayFPS(canvas, avgFPS);
 		}
@@ -272,140 +309,147 @@ public class GamePanel extends SurfaceView implements SurfaceHolder.Callback {
 	//update game entities
 	protected void update()
 	{
-		//don't call the sprite cleanup if we don't need to
-		cleanupNeeded = false;
-		
-		//update the city
+		//has the game ended?
 		if(city != null)
-			city.update();
-
-		//update explosions
-		for(Explosion e : explosions)
-		{
-			e.update();
-			//cleanup expired explosions
-			if(e.hasExpired())
-			{
-				deadExplosions.add(e);
-				cleanupNeeded = true;
-			}
-		}
-
-		//add any queued up city missiles to active city missiles
-		if(!queuedCityMissiles.isEmpty())
-		{
-			cityMissiles.addAll(queuedCityMissiles);
-			queuedCityMissiles.clear();
-		}
+			gameOver = (city.getHealth() <= 0);
 		
-		//update active city missiles
-		for(CityMissile c : cityMissiles)
+		if(!gameOver)
 		{
-			c.update();
-			//check if missile reached target
-			if(!c.hasDetonated())
+			//don't call the sprite cleanup if we don't need to
+			cleanupNeeded = false;
+			
+			//update the city
+			if(city != null)
+				city.update();
+	
+			//update explosions
+			for(Explosion e : explosions)
 			{
-				//check if missile has hit an explosion
-				boolean hitExplosion = false;
-				for(Explosion e : explosions)
-					if(c.hasCollided(e))
-						hitExplosion = true;
-				if(hitExplosion)
+				e.update();
+				//cleanup expired explosions
+				if(e.hasExpired())
 				{
-					//if so, kill the missile and spawn an explosion
+					deadExplosions.add(e);
+					cleanupNeeded = true;
+				}
+			}
+	
+			//add any queued up city missiles to active city missiles
+			if(!queuedCityMissiles.isEmpty())
+			{
+				cityMissiles.addAll(queuedCityMissiles);
+				queuedCityMissiles.clear();
+			}
+			
+			//update active city missiles
+			for(CityMissile c : cityMissiles)
+			{
+				c.update();
+				//check if missile reached target
+				if(!c.hasDetonated())
+				{
+					//check if missile has hit an explosion
+					boolean hitExplosion = false;
+					for(Explosion e : explosions)
+						if(c.hasCollided(e))
+							hitExplosion = true;
+					if(hitExplosion)
+					{
+						//if so, kill the missile and spawn an explosion
+						deadCityMissiles.add(c);
+						explosions.add(new Explosion((int)c.getX(), (int)c.getY()));
+						cleanupNeeded = true;
+					}
+				}
+				else if(c.hasDetonated())
+				{
+					//if missile has detonated, kill the missile and spawn an explosion
 					deadCityMissiles.add(c);
 					explosions.add(new Explosion((int)c.getX(), (int)c.getY()));
 					cleanupNeeded = true;
 				}
 			}
-			else if(c.hasDetonated())
-			{
-				//if missile has detonated, kill the missile and spawn an explosion
-				deadCityMissiles.add(c);
-				explosions.add(new Explosion((int)c.getX(), (int)c.getY()));
-				cleanupNeeded = true;
-			}
-		}
-	
-		//update all enemy ships
-		for(Ship s : ships)
-		{
-			s.update(width);
-			boolean spawnExplosion = false;
-			for(Explosion e : explosions)
-			{
-				if(s.hasCollided(e) && !spawnExplosion)
-				{
-					spawnExplosion = true;
-					addScore(s.getPointsWorth());
-					deadShips.add(s);
-					cleanupNeeded = true;
-				}
-			}
-			//create an explosion where the ship was if it touched an explosion
-			if(spawnExplosion)
-				explosions.add(new Explosion((int)s.getX(), (int)s.getY()));
-		}
 		
-		//update enemy ordnance
-		for(Ordnance o : ordnance)
-		{
-			o.update();
-			boolean spawnExplosion = false;
-			for(Explosion e : explosions)
+			//update all enemy ships
+			for(Ship s : ships)
 			{
-				if(o.hasCollided(e) && !spawnExplosion)
+				s.update(width);
+				boolean spawnExplosion = false;
+				for(Explosion e : explosions)
 				{
-					spawnExplosion = true;
-					addScore(o.getPointsWorth());
-					deadOrdnance.add(o);
-					cleanupNeeded = true;
+					if(s.hasCollided(e) && !spawnExplosion)
+					{
+						spawnExplosion = true;
+						addScore(s.getPointsWorth());
+						deadShips.add(s);
+						cleanupNeeded = true;
+					}
+				}
+				//create an explosion where the ship was if it touched an explosion
+				if(spawnExplosion)
+					explosions.add(new Explosion((int)s.getX(), (int)s.getY()));
+			}
+			
+			//update enemy ordnance
+			for(Ordnance o : ordnance)
+			{
+				o.update();
+				boolean spawnExplosion = false;
+				for(Explosion e : explosions)
+				{
+					if(o.hasCollided(e) && !spawnExplosion)
+					{
+						spawnExplosion = true;
+						addScore(o.getPointsWorth());
+						deadOrdnance.add(o);
+						cleanupNeeded = true;
+					}
+				}
+				
+				//Don't check for city collision if collided with explosion, favors player
+				if(!spawnExplosion)
+				{
+					//checks if city was hit by ordnance, city handles any damage taken
+					if(city.wasHit(o))
+					{
+						spawnExplosion = true;
+						deadOrdnance.add(o);
+						cleanupNeeded = true;
+					}
+				}
+				
+				//create an explosions where the ordnance was if it touched an explosion or city
+				if(spawnExplosion)
+					explosions.add(new Explosion((int)o.getX(), (int)o.getY()));
+			}
+			
+			//update prizes
+			for(Prize p : prizes)
+			{
+				p.update();
+				boolean wasDestroyed = false;
+				for(Explosion e : explosions)
+				{
+					if(p.hasCollided(e) && !wasDestroyed)
+					{
+						addScore(p.getPointsWorth());
+						p.applyBonus(city);
+						deadPrizes.add(p);
+						cleanupNeeded = true;
+					}
 				}
 			}
 			
-			//Don't check for city collision if collided with explosion, favors player
-			if(!spawnExplosion)
-			{
-				//checks if city was hit by ordnance, city handles any damage taken
-				if(city.wasHit(o))
-				{
-					spawnExplosion = true;
-					deadOrdnance.add(o);
-					cleanupNeeded = true;
-				}
-			}
+			if(cleanupNeeded)
+				cleanupSprites();
 			
-			//create an explosions where the ordnance was if it touched an explosion or city
-			if(spawnExplosion)
-				explosions.add(new Explosion((int)o.getX(), (int)o.getY()));
+			//update the difficulty level if it is less than 10, 10 is highest
+			if(difficultyLevel < 10)
+				updateDifficultyLevel();
+			
+			//attempt to spawn any new enemy entities or power-ups
+			tryToSpawn();
 		}
-		
-		//update prizes
-		for(Prize p : prizes)
-		{
-			p.update();
-			boolean wasDestroyed = false;
-			for(Explosion e : explosions)
-			{
-				if(p.hasCollided(e) && !wasDestroyed)
-				{
-					addScore(p.getPointsWorth());
-					p.applyBonus(city);
-					deadPrizes.add(p);
-					cleanupNeeded = true;
-				}
-			}
-		}
-		
-		if(cleanupNeeded)
-			cleanupSprites();
-		
-		//update the difficulty level if it is less than 10, 10 is highest
-		if(difficultyLevel < 10)
-			updateDifficultyLevel();
-		
-		//attempt to spawn any new enemy entities or power-ups
-		tryToSpawn();
 	}
 	
 	public void setAvgFPS(String avgFPS)
@@ -418,6 +462,7 @@ public class GamePanel extends SurfaceView implements SurfaceHolder.Callback {
 	{
 		if(canvas != null && city != null)
 		{
+			//draw the score
 			canvas.drawText(scoreText + score, 30, 30, scorePaint);	
 			
 			//change color of health text based on city's current health
@@ -434,7 +479,18 @@ public class GamePanel extends SurfaceView implements SurfaceHolder.Callback {
 				healthPaint.setARGB(255, 0, 255, 0);
 			}
 			
+			//draw the city's health
 			canvas.drawText(healthText + city.getHealth(), 30, height - 50, healthPaint);
+			//draw the difficulty level
+			canvas.drawText(difficultyText + difficultyLevel, 300, 30, difficultyPaint);
+			
+			//draw the reload bar
+			if(city.getReloadTimeLeft() > 0)
+				canvas.drawRect(width - 100, height - (int)((float)200 * ((float)city.getReloadTimeLeft()/(float)city.getMaxReloadTime())), width - 60, height, reloadBarPaint);
+			
+			//draw the power shield bar
+			if(city.getShieldPower() > 0)
+				canvas.drawRect(width - 50, height - (int)((float)200 * ((float)city.getShieldPower()/(float)city.getMaxShieldPower())), width - 10, height, shieldPowerBarPaint);
 		}
 	}
 	
@@ -447,6 +503,16 @@ public class GamePanel extends SurfaceView implements SurfaceHolder.Callback {
 		}
 	}
 	
+	//display game over message with final score
+	private void displayGameOver(Canvas canvas)
+	{
+		if(canvas != null)
+		{
+			canvas.drawText(gameOverText, 100, (int)(height * 0.4), gameOverPaint);
+			canvas.drawText(finalScoreText + " " + score, 180, (int)(height * 0.7), finalScorePaint);
+		}
+	}
+	
 	//increase the difficulty level
 	private void updateDifficultyLevel()
 	{
@@ -454,7 +520,7 @@ public class GamePanel extends SurfaceView implements SurfaceHolder.Callback {
 		if((System.currentTimeMillis() - timeLastDifficultyIncrease) >= DIFFICULTY_INCREASE_INTERVAL)
 		{
 			//max difficulty level of 10
-			difficultyLevel = Math.min(difficultyLevel++, 10);
+			difficultyLevel = Math.min(difficultyLevel + 1, 10);
 			timeLastDifficultyIncrease = System.currentTimeMillis();
 		}
 	}
