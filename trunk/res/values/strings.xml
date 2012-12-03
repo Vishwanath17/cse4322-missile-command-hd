@@ -5,7 +5,10 @@
     <string name="menu_settings">Settings</string>
     <string name="title_activity_game">Missile Command HD</string>
     <string name="score">Score: </string>
+    <string name="final_score">Final score before you failed: </string>
     <string name="high_score">High Score: </string>
     <string name="city_health">City Health: </string>
+    <string name="difficulty_level">Difficulty Level: </string>
+    <string name="game_over">GAME OVER</string>
 
 </resources>

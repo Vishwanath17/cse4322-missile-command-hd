@@ -39,9 +39,12 @@ public final class R {
     }
     public static final class string {
         public static final int app_name=0x7f040000;
-        public static final int city_health=0x7f040006;
+        public static final int city_health=0x7f040007;
+        public static final int difficulty_level=0x7f040008;
+        public static final int final_score=0x7f040005;
+        public static final int game_over=0x7f040009;
         public static final int hello_world=0x7f040001;
-        public static final int high_score=0x7f040005;
+        public static final int high_score=0x7f040006;
         public static final int menu_settings=0x7f040002;
         public static final int score=0x7f040004;
         public static final int title_activity_game=0x7f040003;
