@@ -7,7 +7,7 @@ import android.graphics.Paint;
 public class City {
 	
 	private static final int MAX_RELOAD_TIME = 100;
-	private static final int MAX_HEALTH = 10;
+	private static final int MAX_HEALTH = 100;
 	private static final int MAX_SHIELD_POWER = 30;
 	
 	private Bitmap bitmap;
